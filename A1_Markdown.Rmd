@@ -1,0 +1,352 @@
+---
+title: "Analysis 1_Baldridge"
+output: pdf_document
+---
+
+This assignment uses part of data from the Baldrige scoring process collected by the National Institute of Standards and Technology (NIST) for years 1990 to 2006. The Malcolm Baldrige National Quality Award (MBNQA) is considered as one of the most powerful catalysts of quality and organizational performance excellence in the United States, and it has had significant influence throughout the world. This data consists of performance evaluation scores of organizations from different sectors (variable “sector”) like (1) manufacturing, (2) services, (3) small business, (4) education, (5) healthcare, and (6) nonprofit from 1990 to 2006. The dataset has scores on 7 categories that include (1) leadership; (2) strategic planning; (3) customer focus; (4) measurement, information and analysis; (5) workforce focus; (6) process management; and (7) results. In turn, these categories may have subcategories and the Criteria has sometimes added, discontinued or modified subcategories over time. 
+
+There is a variable “slnoskm17mar11” that simply provides a unique rowname to each observation. The variable “applicant” is applicant number within a particular year. There is another variable called “permanentid” that has an identifier for organizations to identify them uniquely over time if they appear in the data more than once. 
+
+Note that the scores are assigned by multiple volunteer examiners for each subcategory. We have individual (median) scores and consensus scores from the examiners. Prefix “i” in the column names tells us that this score is the median value of the all individual scores given by the individual examiners for the specified category and subcategories. Prefix “c” means that the score is a consensus scores received by an organization. In early years, the consensus score were provided only if the organization scored above a certain cut-off value.
+
+1.	Download the dataset “baldrige2011.xlsx” posted on Canvas. To answer the questions, please use R markdown to execute the R code and document it with appropriate comments and observations wherever it is required. Please use “stargazer” library for showing all the output tables and “ggplot2” for all graphs.
+
+Pre-processing:
+```{r setup, include=FALSE}
+rm(list=ls())
+library(rio)
+library(moments)
+df = import("baldridge2011.xlsx")
+setwd("C:/Users/yagna/Documents/R/R workings")
+library(stargazer)
+library(ggplot2)
+```
+
+
+a)	What are the number of observations, mean, median, standard deviation, min, maximum, and mode of iirtotal and ccrtotal in this data? Does it make more sense to use mean, median, or mode as a measure of central tendency for these two variables?
+
+
+```{r}
+df$ccrtotal <- as.numeric(df$ccrtotal)
+stargazer(df[c("iirtotal","ccrtotal")],type = "text")
+median(df$iirtotal,na.rm=TRUE)
+median(df$ccrtotal,na.rm =TRUE)
+
+#function for Mode
+Mode = function(x){
+  ta = table(x)
+  tam = max(ta)
+  if (all(ta == tam))
+    mod = NA
+  else
+    if(is.numeric(x))
+      mod = as.numeric(names(ta)[ta == tam])
+  else
+    mod = names(ta)[ta == tam]
+  return(mod)
+}
+
+Mode(df$iirtotal)
+Mode(df$ccrtotal)
+
+hist(df$iirtotal,xlim=c(0,900),col = 'red',main = "Histogram of IIR Total")
+hist(df$ccrtotal,xlim=c(0,900),col = 'blue',main = "Histogram of CCR Total")
+
+```
+We can see from the histograms of these 2 variables that the plots are left skewed due to the presence of outliers on the lower end. Hence we can conclude median is the best measure of central tendency for these two variables.
+
+b)	List the mean, median, standard deviation, min and max of iirtotal and ccrtotal by Sector (make sure that you label sectors such that 1=mfg, 2=service, 3=small, 4=education, 5=health, 6=nonprofit and the output shows sector names and not numerals that denote the sector). Which sector has the highest variation in ccrtotal?
+
+```{r}
+stargazer(subset(df[c("ccrtotal","iirtotal")],df$sector==1),
+          title="Manufacturing Sector", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+stargazer(subset(df[c("ccrtotal","iirtotal")], df$sector==2),
+          title="Service Sector", type = "text",
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+stargazer(subset(df[c("ccrtotal","iirtotal")], df$sector==3),
+          title="Small Sector", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+stargazer(subset(df[c("ccrtotal","iirtotal")], df$sector==4),
+          title="Education Sector", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+stargazer(subset(df[c("ccrtotal","iirtotal")], df$sector==5),
+          title="Health Sector", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+stargazer(subset(df[c("ccrtotal","iirtotal")], df$sector==6),
+          title="Non-Profit Sector", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75","N"))
+
+```
+We can see from the output that the non-profit sector has the highest variation in the CCRTotal score (sd = 152.06)
+
+c)	Identify the outliers in this data set in terms of ccrtotal using a box plot. How does the mean and standard deviation of ccrtotal change if the outliers are included versus excluded from the data set?
+```{r}
+ggplot(df, aes(y=df$ccrtotal)) +
+  geom_boxplot(outlier.colour = "red", outlier.shape = 21, 
+               outlier.size = 2)
+
+min(df$ccrtotal, na.rm = TRUE)
+which(df$ccrtotal == 185)
+df = df[-506,]
+
+stargazer(df[c("iirtotal","ccrtotal")],type = "text")
+```
+We can infer from the output that the removal of the outlier the mean (by 0.211) and SD (by -0.089) of the score improves slightly.
+
+d)	Draw a graph to represent the relationship between icat4total and ccat7total. Make a comment on the graph and how will you interpret it. Also compute the correlation coefficient between these two variables. What does this coefficient tell you about the relationship between the variables? (Hint: correlation can’t be calculated for 2 variables with different number of observations)
+```{r}
+plot(df$icat4total,df$ccat7total, xlab = "ICat4Total",ylab = "CCat7Total",pch=19, col=c("Red","blue"))
+df$ccat7total <- as.numeric(df$ccat7total)
+cor(df[c("icat4total","ccat7total")])  #put vars of interest in double quotes
+cor(x=df$icat4total,y=df$ccat7total,use="complete.obs")
+
+# convert ccat7total to numeric value
+df$ccat7total <- as.numeric(df$ccat7total)
+# creating a new dataframe with both variables of equal # of observations
+z = subset(df, (!is.na(df$ccat7total)) & (!is.na(df$icat4total)))
+# scatter plot showing the relationship between the variables with regression line
+ggplot(z, aes(x = icat4total, y = ccat7total)) +
+  geom_point() +
+  geom_smooth(method = lm)
+cor(z$icat4total, z$ccat7total)
+
+```
+
+
+From the graph, we interpret that there is no relationship between the 2 scores.
+
+e)	Provide a count of organizations that have appeared more than once in the data and identify them using their permanentid. Make a table that shows counts of organizations appearing more than once (i.e., twice, thrice, four times, etc). 
+```{r}
+tbl = as.data.frame(sort(table(df$permanentid), decreasing = TRUE))
+stargazer(tbl, type = "text", title="Descriptive statistics", digits=2, summary = FALSE)
+```
+
+f)	Some companies have been evaluated for 6 or more times in the data. Identify these companies and plot a line graph for any one of these companies that you found most interesting by looking over the trends in icat4total and ccat7total scores during the years they were evaluated. Explain why you found that company interesting and make some conjectures about the relationship between icat4total and ccat7total based on what you observe. 
+```{r}
+# identifying companies who had more than 6 evaluations 
+library(sqldf)
+sqldf('SELECT permanentid, count(permanentid)
+      FROM df 
+      GROUP BY permanentid
+      Having count(permanentid) >=6
+      Order BY count(permanentid) DESC')
+#creating a dataframe for companies with more than 6 evaluations
+df1<-sqldf('SELECT permanentid, icat4total as score,year,"icat4" as variable
+      FROM df
+      WHERE permanentid in (SELECT permanentid
+      FROM df 
+      GROUP BY permanentid
+      Having count(permanentid) >=6
+      Order BY count(permanentid) DESC)
+      union
+      SELECT permanentid, ccat7total as score, year, "ccat7"
+      FROM df
+      WHERE permanentid in (SELECT permanentid
+      FROM df 
+      GROUP BY permanentid
+      Having count(permanentid) >=6
+      Order BY count(permanentid) DESC)')
+#convert year to numeric
+df1$year<- as.numeric(df1$year)
+ggplot() + 
+  geom_line(data = df1[df1$permanentid =="B-031",], aes(year, score, group=variable, color=variable))+
+  geom_line(data = df1[df1$permanentid =="B-031",], aes(year, score, group=variable, color=variable)) +
+  xlab('Dates') +
+  ylab('Scores') +
+  scale_x_continuous(breaks=seq(1990,max(df1$year),2))
+
+```
+We can see from the plot of the company B-031 that there has been a significant difference in the scores from the year 1996 onwards. The consensus scores for results category has significantly increased while the individual score for the category education has decreased. It is interesting to note that as the score for education goes down, the score for results go up. 
+
+Part 2: Data Visualization
+
+2. Download the dataset “baldrige2011.xlsx” posted on Canvas. To answer the questions, please use R markdown to execute the R code and document it with appropriate comments and observations wherever it is required. Please use “stargazer” library for showing all the output tables and “ggplot2” for all graphs.
+
+a)	Investigate the distribution of icat4total and icat7total scores for healthcare sector with the help of a histogram plot. Attach the resulting graph, copy and paste the accompanying R code for computing this histogram, and list three key observations.
+```{r}
+a = subset(df[c("icat4total","icat7total")],df$sector==5)
+
+a$icat4total <- as.numeric(a$icat4total)
+a$icat7total <- as.numeric(a$icat7total)
+
+hist(a$icat4total,xlim=c(0,350),col = 'red',main = "Histogram of ICAT4Total & ICAT7Total")
+hist(a$icat7total,xlim=c(0,350), add=T,col=rgb(0, 1, 0, 0.5))
+
+a = subset(df[c("icat4total","ccat7total")],df$sector==5)
+
+a$icat4total <- as.numeric(a$icat4total)
+a$ccat7total <- as.numeric(a$ccat7total)
+
+hist(a$icat4total,xlim=c(0,300),col = 'red',main = "Histogram of ICAT4Total & ICAT7Total")
+hist(a$ccat7total, add=T,col=rgb(0, 1, 0, 0.5))
+
+```
+
+The three key observations are:
+1.	Both the scores are fairly normally distributed. 
+2.	The icat4total (0 to 350) scores are more spread compared to icat7total (0-80) scores.
+3.	The mean of icat7total is around 50 and that of icat4total is around 150-200. 
+
+b)	Now, investigate the relationship between icat4total and ccat7total scores for those companies that have both the scores available and belong to manufacturing sector using a scatterplot. Attach the resulting graph, copy and paste the accompanying R code that you used to draw this scatterplot, and list two key observations about the relationship between the scores that you see from this plot
+```{r}
+b = subset(df[c("icat4total","ccat7total","year")],df$sector==1)
+
+plot(b$icat4total,b$ccat7total, main = "Plot of MFG sector")
+```
+The two key observations are:
+1.	There seems to be no correlation between these two scores.
+2.	We can infer no relationship from these 2 scores.
+
+
+c)	Plot a line graph to understand the trends in average iirtotal scores by sector. Also, draw vertical lines at years 1995 and 1998 to separate out and better visualize the trends in 3 different time periods (before 1995, 1995-1998, after 1998).
+```{r}
+#creating a dataframe to understand the trends in average iirtotal scores by sector
+df4<-sqldf('
+      SELECT year, sector, avg(iirtotal) as avgScore 
+      FROM df
+      group by sector,year
+      ')
+df4$year = as.numeric(df4$year)
+# Line plot with multiple groups
+ggplot(data=df4, aes(x=year, y=avgScore, group=sector)) +
+  geom_line(aes(color=sector))+
+  geom_point()+
+  scale_color_gradientn(colors =  rainbow(6))+
+  geom_vline(xintercept = 1995, color="black", linetype="dashed", size = 1.5)+
+  geom_vline(xintercept = 1998, color="black", linetype="dashed", size = 1.5)
+```
+
+d)	Plot a line graph to understand the trends in number of applicants by sector. Also, draw vertical lines at years 1995 and 1998 to separate out and better visualize the trends in 3 different time periods (before 1995, 1995-1998, after 1998).
+
+```{r}
+
+df5<-sqldf('
+      SELECT year, sector, count(applicant) as applicants
+      FROM df
+      group by sector,year
+      ')
+df5$year = as.numeric(df5$year)
+# Line plot with multiple groups
+ggplot(data=df5, aes(x=year, y=applicants, group=sector)) +
+  geom_line(aes(color=sector))+
+  geom_point()+
+  scale_color_gradientn(colors =  rainbow(6))+
+  geom_vline(xintercept = 1995, color="black", linetype="dashed", size = 1.5)+
+  geom_vline(xintercept = 1998, color="black", linetype="dashed", size = 1.5)
+```
+
+e)	Draw a box plot for all individual category totals (icat1total,icat2total….icat7total)  in manufacturing sector and identify the scores that have outliers.
+```{r}
+library(car)
+
+mfg = (subset(df[c("icat1total","icat2total","icat3total","icat4total","icat5total","icat6total", "icat7total")],df$sector==1))
+
+Boxplot(mfg[1:7], data = mfg)
+
+sqldf('SELECT count(distinct(permanentid)) as Total
+      FROM df ')
+#table of organizations that appeared more than once
+#Top 5 
+sqldf('SELECT permanentid, count(permanentid) as evaluations
+      FROM df 
+      GROUP BY permanentid
+      Having count(permanentid) >0
+      ORDER BY count(permanentid) DESC
+      LIMIT 5')
+#Bottom 5 
+sqldf('SELECT permanentid, count(permanentid) as evaluations
+      FROM df 
+      GROUP BY permanentid
+      Having count(permanentid) >0
+      ORDER BY count(permanentid) ASC
+      LIMIT 5')
+
+```
+
+f)	Finally, refine your analysis in part 2b by conditioning the scatterplot between icat4total and ccat7total score during 3 different time periods (upto 1994, 1995 to 1998, and 1999 onwards). To do this, install the R library “lattice” by typing install.packages(“lattice”), then load it for your current session by typing library(lattice). Since we want to condition the scatterplot for different time periods, create a new variable, say, time_period for which
+                                   
+time_period = 0 if year <= 1994 and 
+time_period= 1 if 1995 <= year  <= 1998
+time_period= 2 if year >= 1999
+
+and compute a scatterplot between icat4total and icat7total score, conditional on time_period. Attach the resulting graph, copy and paste the accompanying R code for computing this scatterplot, and list three key observations about the relationships between advertising, income and sales that you see from this plot.
+
+```{r}
+library(lattice)   # Load library into memory
+
+b$time_period = 1
+
+for (i in 1: nrow(b)) {
+  if (b[i,'year'] <  1995) {
+    b[i,'time_period'] = 0
+  } else if (b[i,'year'] > 1998) {
+    b[i,'time_period'] = 2
+  }
+}
+b$time_period = factor(b$time_period)
+
+b$time_period
+
+xyplot(icat4total ~ ccat7total | time_period, data=b)
+
+```
+Three key observations:
+1.	Scores in time_period range is tightly packed around the mean as the central tendency.
+2.	Scores in time_period 1999 and above, both the scores are tightly dependent on each other.
+3.	Scores in the time_period between 1995 to 1998, the scores are scattered all around with no apparent relationship.
+
+
+g)	Create a table of summary stats (N, mean, sd, min, max) for all individual category totals (icat1total, icat2total, …, icat7total). Note: The output should be neatly formatted in a Table and the values should be rounded to 2 decimal places. Please use “stargazer” library for creating the stats table.
+
+```{r}
+stargazer(subset(df[c("icat1total","icat2total","icat3total","icat4total","icat5total","icat6total", "icat7total")]),
+          title="SUMMARY STATISTICS", type = "text", 
+          digits=2, median = TRUE, omit.summary.stat = c("p25", "p75"))
+```
+
+h)	Create a table of pairwise Pearson correlation coefficients for all consensus category totals (ccat1total,ccat2total, …, ccat7total) also showing p-value for correlations. Note: The output should be neatly formatted in a Table and the values should be rounded to 2 decimal places.
+```{r}
+library(Hmisc)
+df$ccat1total <- as.numeric(df$ccat1total)
+df$ccat2total <- as.numeric(df$ccat2total)
+df$ccat3total <- as.numeric(df$ccat3total)
+df$ccat4total <- as.numeric(df$ccat4total)
+df$ccat5total <- as.numeric(df$ccat5total)
+df$ccat6total <- as.numeric(df$ccat6total)
+df$ccat7total <- as.numeric(df$ccat7total)
+
+c = subset(df,select = c(ccat1total,ccat2total,ccat3total,ccat4total,
+                  ccat5total,ccat6total,ccat7total),na.rm=TRUE)
+                   
+res <- round(cor(c, use = "pairwise", method = "pearson"),2)
+res
+res2 <- rcorr(as.matrix(c))
+
+res2
+```
+
+
+Part 3: Confidence Intervals/ Prediction
+
+3.	Download the dataset “baldrige2011.xlsx” posted on Canvas. To answer the questions, please use R markdown to execute the R code and document it with appropriate comments and observations wherever it is required. Please use “stargazer” library for showing all the output tables and “ggplot2” for all graphs.
+
+
+a.	Construct a 95% confidence interval for the average icat7total. Based on this confidence interval, what is the maximum icat7total that a company can score with 95% confidence. Write the R code that you used to arrive at this answer.
+```{r}
+t.test(df$icat7total, conf.level = 0.95)
+```
+The limits of the 95% Confidence Interval for average icat7total are 139.52 (lowest) and 147.43 (Highest).
+The maximum icat7total score the firm can expect with a 95% confidence is 147.43.
+
+b.	Is icat7total score statistically different for companies in healthcare and education sector? If so, which set of firms have higher score? To answer these questions, split the data into two subsets for healthcare and education firms and construct a 95% confidence intervals for each subset.  Based on these two confidence intervals, is it likely that the average score of healthcare firms is same as that of education firms? Write the R code that you used to derive this inference.
+```{r}
+
+edu=subset(df,sector==4,select = c(icat7total))
+t.test(edu, conf.level = 0.95)
+
+health=subset(df,sector==5,select = c(icat7total))
+t.test(health, conf.level = 0.95)
+
+```
+We can infer from the output above that the health sector companies are scoring higher in the icat7total score. The p-value of both the firms are almost the same which shows they are not much statistically different. The mean score of health sector is higher than the education sector. 
