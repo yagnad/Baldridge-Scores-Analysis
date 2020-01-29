@@ -1,0 +1,289 @@
+---
+title: "Analysis 1_Baldridge"
+output: word_document
+---
+SDM Homework B: Baldrige dataset
+Simple Regression, and Multiple Regression with Dummy Variables and Interactions
+
+Download the dataset “baldrige2011.xlsx” posted on Canvas. You have used this dataset earlier but to refresh your memory, I have provided details about the dataset towards the end of this document. To answer the questions, please use R markdown to execute the R code and document it with appropriate comments and observations wherever it is required. Please provide professional looking tables and charts wherever requested so that they are self-explanatory when printed in black and white; you can use “stargazer” library for showing the output tables and “ggplot2” for graphs, or other R packages.
+```{r}
+rm(list=ls())
+library(rio)
+library(moments)
+library(stargazer)
+df = import("baldridge2011.xlsx")
+setwd("C:/Users/yagna/Documents/R/R workings")
+str(df)
+library(car)
+
+```
+
+1.	SLR: Run a simple regression model m1 with “ccat7total” as the response variable and “icat4total” as the (only) explanatory variable for the 1999-2006 period only. Interpret the coefficient of icat4total. Also calculate the correlation between “ccat7total” and “icat4total”, and explain how this relates to R squared of the model m1. Add any further observations that you can infer from this analysis. 
+```{r}
+df$ccat7total <- as.numeric(df$ccat7total)
+#subsetting the variables for the required years only
+df1 <- subset(df[c("ccat7total","icat1total","icat2total","icat3total",
+                   "icat4total","icat5total","icat6total", "year","sector")], df$year >= 1999)
+#running the linear regression model
+m1 <- lm(ccat7total ~ icat4total, data=df1)
+stargazer(m1,type = "text")
+summary(m1)
+#correlation on the 2 variables
+cor(df1$ccat7total,df1$icat4total,use="complete.obs")
+```
+Interpretation:
+We can interpret that with the unit increase in the icat4total, the ccat7total score increases by 2.432 units. From the correlation of 0.33 we can see that they have a weak positive correlation between the 2 variables. The R squared score of about only 10% signifies that the model might not be the best way to explain the correlation between the variables.
+
+
+2.	MLR: Now, we would like to investigate the impact of multiple variable using multiple linear regression. To that end, run a regression model m2 with “ccat7total” as the response variable and six individual category totals (icat1total, icat2total, icat3total, icat4total, icat5total, icat6total)  as predictor variables only for the 1999-2006 period. Interpret the coefficient of icat1total and icat3total. Also comment on other variables that are statistically significant. Add any further observations that you can infer from this analysis.
+
+```{r}
+#running the linear regression model
+m2 <- lm(ccat7total ~ icat1total+icat2total+icat3total+icat4total+icat5total+ icat6total, data=df1)
+
+stargazer(m2,type = "text")
+```
+Interpretation:
+Co-efficient of icat1total: with every unit increase in the score of icat1total, there will be an increase of 1.682 units in the ccat7total score.
+Co-efficient of icat3total: with every unit increase in the score of icat3total, there will be an increase of 0.994 units in the ccat7total score.
+Other significant variable:  with every unit increase in the score of icat6total, there will be an increase of 0.953 units in the ccat7total score.
+
+3.	MLR with Dummy Variables: Now, run a regression model m3 with “ccat7total” as the response variable, six individual category totals (icat1total, icat2total, icat3total, icat4total, icat5total, icat6total), year dummies for 2000-2006, and dummies for services, healthcare, small, education and nonprofits for the 1999-2006 period. Interpret the coefficient of icat1total and icat6total. Also interpret the coefficient of period dummies and sector dummies. 
+```{r}
+##multiple numeric and dummy vars
+
+m3 <- lm(ccat7total ~ icat1total+icat2total+icat3total+icat4total+icat5total+ icat6total+as.factor(year)+ as.factor(sector), data=df1)
+stargazer(m3,type = "text")
+summary(m3)
+AIC(m3)
+BIC(m3)
+
+```
+
+Interpretation:
+Co-efficient of icat1total: For the year 1999 and a company in the manufacturing sector, with every unit increase in the score of icat1total, there will be an increase of 0.996 units in the ccat7total score.
+
+Co-efficient of icat6total: For the year 1999 and a company in the manufacturing sector, with every unit increase in the score of icat6total, there will be an increase of 1.245 units in the ccat7total score.
+
+Co-efficient of period dummies: The year categories are not statistically significant. For a company in mfg sector, each year change, changes the ccat7total by the coefficient of the year dummy.
+
+Co-efficient of sector dummies: Most of the sector dummies are not statistically significant. For a company in small and education sectors will have an increased score of 28.69 and 21.05 units more than the manufacturing sector score.
+
+
+
+4.	MLR with interactions among continuous variables: Now, run a regression model m4a with “ccat7total” as the response variable, six individual category totals (icat1total, icat2total, icat3total, icat4total, icat5total, icat6total), year dummies for 2000-2006, and dummies for services, healthcare, small, education and nonprofits, and the interaction between icat1total and icat6total for the 1999-2006 period. Compare this model with the nested model m3 with the same variables but without the interaction term. Then, answer the following questions:
+
+a.	Which of the two models (m3 and m4a) is better? 
+b.	Are icat1total  and icat6total important predictors of ccat7total? Why or why not?
+c.	How will you interpret the coefficient of icat1total, icat6total, and the interaction term?  
+d.	Run a model m4b where you include interaction involving the mean-centered icat1total and mean-centered icat6total variable (you will continue to use icat1total and icat6total variables without mean-centering as before), instead of simply using multiplication of icat1total and icat6total as the interaction term. Interpret the coefficient of icat1total, icat6total, and the interaction terms. 
+```{r}
+m4 <- lm(ccat7total ~ icat1total+icat2total+icat3total+icat4total+icat5total+ icat6total+as.factor(year)+ as.factor(sector)+(icat1total*icat6total), data=df1)
+stargazer(m4,type = "text")
+summary(m4)
+AIC(m4)
+BIC(m4)
+
+mean(df1$icat1total,na.rm = TRUE)
+mean(df1$icat6total,na.rm = TRUE)
+
+m4b <- lm(ccat7total ~ icat1total+icat2total+icat3total+icat4total+icat5total+ icat6total+as.factor(year)+ as.factor(sector)+I((icat1total-58.96)*(icat6total-41.18)), data=df1)
+stargazer(m4b,type = "text")
+summary(m4b)
+```
+Interpretation:
+4a: Model 4a renders most of the variables and the dummy variables as insignificant where as m3 has some variables as significant. Also there is no significant difference between the 2 models in terms of R squared, AIC and BIC values. So its better to conclude M3 is better fit than M4A.
+
+b. Scores icat1total and icat6total seems to be an important predictor if the ccat7total as they remain statistically significant in most of the models and there seems to be higher fit than the other variables in the models that significantly affect the ccat7total scores.
+
+c.Co-efficient of icat1total: For the year 1999 and a company in the manufacturing sector, indicates that one unit increase in icat1total score is not statistically significantly associated with an average decrease of 2.78 units in ccat7total score.
+
+Co-efficient of icat6total: For the year 1999 and a company in the manufacturing sector, indicates that one unit increase in icat6total score is not statistically significantly associated with an average decrease of 4.02 units in ccat7total score.
+
+Co-efficient of the interaction term: For the year 1999 and a company in the manufacturing sector,indicates that the effect of a unit increase for both icat1total and icat6total is associated with an average decrease of 6 in ccat7total score. 
+
+d.Co-efficient of icat1total: For the year 1999 and a company in the manufacturing sector, indicates that one unit increase in icat1total score is not statistically significantly associated with an average increase of 0.5 units in ccat7total score.
+
+Co-efficient of icat6total: For the year 1999 and a company in the manufacturing sector, indicates that one unit increase in icat6total score is not statistically significantly associated with an average increase of 0.7 units in ccat7total score.
+
+Co-efficient of the interaction term: For the year 1999 and a company in the manufacturing sector,indicates that the effect of a unit increase for both icat1total and icat6total is associated with an average increase of 0.68 units in ccat7total score. 
+
+
+5.	MLR with interactions among continuous and binary (nonprofits sector) variable: Consider a model m5 only for 1999-2006 period, with “ccat7total” as the response variable. Examine if nonprofits dummy variable has a significant interaction effect with icat6total. You will also have six individual category totals (icat1total, icat2total, icat3total, icat4total, icat5total, icat6total), year dummies for 2000-2006, and dummies for services, healthcare, small, education and nonprofits in the model.
+How do you interpret the interaction term. Comment on differences in coefficients from model m3. 
+
+```{r}
+#create binary variable for nonprofit sector
+
+
+#interactions among continuous and binary (nonprofit)
+m5 <- lm(ccat7total ~ icat1total + icat2total + icat3total + icat4total + 
+            icat5total + icat6total + as.factor(year) + as.factor(sector)+
+            I(icat6total*(sector==6)), data=df1)
+summary(m5)
+stargazer(m5,type = "text")
+
+```
+
+Interpretation:
+With keeping the nonprofit sector as binary and its interaction with the icat6total score, there is a significant change in the coefficients of all the variables as compared to M3. The coefficient of the interaction terms signifies that for a company in the non profit sector it has statistically significant effect by an unit increase in the icat6total, decreases the ccat7total by 133 units. 
+
+6.	MLR with interactions among continuous and binary (year 2006) variable: Consider a model m6 only for 1999-2006 period. Examine if year 2006 interacts with icat6total. You will also have six individual category totals (icat1total, icat2total, icat3total, icat4total, icat5total, icat6total), year dummies for 2000-2006, and dummies for services, healthcare, small, education and nonprofits in the model.  
+How do you interpret the interaction term. Comment on differences in coefficients from model m3.
+```{r}
+
+#interactions among continuous and binary (2006)
+m6 <- lm(ccat7total ~ icat1total + icat2total + icat3total + icat4total + 
+            icat5total + icat6total + as.factor(year) + as.factor(sector) +
+            I(icat6total*(year==2006)), data=df1)
+summary(m6)
+stargazer(m6,type = "text")
+
+```
+Interpretation:
+With keeping the year 2006 as binary and its interaction with the icat6total score, there is a significant change in the coefficients of all the variables as compared to M3. The coefficient of the interaction terms signifies that for any company in the year 2006 it has statistically significant effect by an unit increase in the icat6total, decreases the ccat7total by 119 units. 
+
+
+7.	Create a table listing the multiple R-squared, adjusted R-squared, AIC, and BIC of the models above. Also, create a table listing the variance inflation factor (VIF) of the models above. Which is the best model and why? Write your key observations based on this Table.  
+```{r}
+
+a=data.frame("Model 1",summary(m1)$r.squared,summary(m1)$adj.r.squared,AIC(m1),BIC(m1))
+names(a)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+b=data.frame("Model 2",summary(m2)$r.squared,summary(m2)$adj.r.squared,AIC(m2),BIC(m2))
+names(b)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+c=data.frame("Model 3",summary(m3)$r.squared,summary(m3)$adj.r.squared,AIC(m3),BIC(m3))
+names(c)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+d=data.frame("Model 4",summary(m4)$r.squared,summary(m4)$adj.r.squared,AIC(m4),BIC(m4))
+names(d)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+d_b=data.frame("Model 4b",summary(m4b)$r.squared,summary(m4b)$adj.r.squared,AIC(m4b),BIC(m4b))
+names(d_b)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+e=data.frame("Model 5",summary(m5)$r.squared,summary(m5)$adj.r.squared,AIC(m5),BIC(m5))
+names(e)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+f=data.frame("Model 6",summary(m6)$r.squared,summary(m6)$adj.r.squared,AIC(m6),BIC(m6))
+names(f)=c("Model number","R squared","Adj. Rsquared","AIC","BIC")
+
+comparison=rbind(a,b,c,d,d_b,e,f)
+
+stargazer(comparison,type="text",summary=FALSE,digits=2)
+
+
+stargazer(vif(m2),type="text",digits=2)
+stargazer(vif(m3),vif(m4),vif(m4b),vif(m5),vif(m6),type="text",digits=2)
+
+
+```
+
+Interpretation:
+Based on the comparison chart involving the R squared, adj R squared, AIC, BIC and VIF values model 4 and 4b seem to be the best models with the least AIC and BIC values and VIF values less than 5. The R squared values at 36% and adj R squared at 31%. But considering the VIF value for the interaction term greater than 10 for model 4b, model 4 seem to the best model for the model fitting.
+
+
+8.	Create a table of summary stats (N, mean, sd, min, max) and correlations for ccat7total, icat1total, icat2total, icat3total, icat4total, icat5total, icat6total, and binary variables for sectors for the 1999-2006 period. The output should be neatly formatted in a Table and the values should be rounded to 2 decimal places. The correlations should indicate significance levels. The output should be neatly formatted in a Table and the values should be rounded to 2 decimal places.
+```{r}
+library(plyr)
+library(dplyr)
+library(reshape2)
+
+#Summary Stats
+
+
+df1$sector=as.factor(df1$sector)
+
+dfm <- melt(df1, id.vars = c("sector"),na.rm=TRUE)
+
+dis=lapply(list(.(sector, variable)), 
+       ddply, .data = dfm, .fun = summarise, 
+       mean = mean(value), 
+       sd = sd(value),
+       N=length(value),
+       se=sd/sqrt(N))
+
+stargazer(dis,type="text",summary=FALSE,digits=2)
+
+
+#Correlation
+
+df1 = na.omit(df1)
+df1 <- df1 %>% mutate_if(is.character, as.numeric)
+
+
+library(xtable)
+
+corstars <-function(x, method=c("pearson", "spearman"), removeTriangle=c("upper", "lower"),
+                     result=c("none", "html", "latex")){
+    #Compute correlation matrix
+    require(Hmisc)
+    x <- as.matrix(x)
+    correlation_matrix<-rcorr(x, type=method[1])
+    R <- correlation_matrix$r # Matrix of correlation coeficients
+    p <- correlation_matrix$P # Matrix of p-value 
+    
+    ## Define notions for significance levels; spacing is important.
+    mystars <- ifelse(p < .0001, "*", ifelse(p < .001, "* ", ifelse(p < .01, "*  ", ifelse(p < .05, "*   ", "    "))))
+    
+    ## trunctuate the correlation matrix to two decimal
+    R <- format(round(cbind(rep(-1.11, ncol(x)), R), 2))[,-1]
+    
+   
+    Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(x))
+    diag(Rnew) <- paste(diag(R), " ", sep="")
+    rownames(Rnew) <- colnames(x)
+    colnames(Rnew) <- paste(colnames(x), "", sep="")
+    
+    ## remove upper triangle of correlation matrix
+    if(removeTriangle[1]=="upper"){
+      Rnew <- as.matrix(Rnew)
+      Rnew[upper.tri(Rnew, diag = TRUE)] <- ""
+      Rnew <- as.data.frame(Rnew)
+    }
+    
+    ## remove lower triangle of correlation matrix
+    else if(removeTriangle[1]=="lower"){
+      Rnew <- as.matrix(Rnew)
+      Rnew[lower.tri(Rnew, diag = TRUE)] <- ""
+      Rnew <- as.data.frame(Rnew)
+    }
+    
+    ## remove last column and return the correlation matrix
+    Rnew <- cbind(Rnew[1:length(Rnew)-1])
+    if (result[1]=="none") return(Rnew)
+    else{
+      if(result[1]=="html") print(xtable(Rnew), type="html")
+      else print(xtable(Rnew), type="latex") 
+    }
+} 
+corr=corstars(df1, result="none")   # ** p < .0001,**p < .001,* p < .01, * p < .05 
+
+stargazer(corr, type = "text", title="Correlations", 
+                    summary=FALSE)
+cat("\n** p < .0001,**p < .001,* p < .01, * p < .05")
+```
+9.	This is an open ended question and will require you to use your own creativity, imagination and what you know about organizations and management. Come up with a model m7 that you think is best in explaining ccat7total for the 1999-2006 period only. Make sure that you have reasonable VIF values  for your “best” model. Make a case why this is the best model that makes sense based on your intuition, your own theories and statistical/econometric considerations.  Let this be your answer: it is unlikely that two students in a class will have exactly same “best” model and same explanation for choosing that so I really expect to see each student providing a different answer and be surprised if two of you come up with the same answer by sheer chance! This question will have more weight than others. 
+```{r}
+m0 <- lm(ccat7total ~.,
+    data = df1)
+
+best_mod <- step(m0)
+summary(best_mod)
+
+all_vifs <- car::vif(best_mod)
+print(all_vifs)
+
+m7 <- lm(ccat7total ~ icat1total + icat3total + icat6total+ as.factor(sector)+as.factor(year),data = df1)
+summary(m7)
+AIC(m7)
+BIC(m7)
+vif(m7)
+
+```
+
+To come up with the best model, I first did the stepwise regression to compare the variables that are most significant in the kitchen sink model. By analyzing the AIC of the models, it is understood that the variables with highest significance in influencing the ccat7total are icat1,icat3 and icat6 along with the sectors as factors. This means that the variables such as Leadership, customer focus and the process management plays a higher significance in the ccat7total scores though it is commonly known that other variables such as strategy, information analysis and the workforce focus is also equally important in the determination of the final ccat7total scores. 
+By running the model, we can find that the adj R square is at 30% and has all 3 variables significant. The AIC values are the least for this model and also has the least VIF values within 2.
+
+In Management point of view, not focusing on the other variables might significantly affect the final results, but according to this model, we can derive that focusing more on the variables such as Leadership, customer focus and the process management will fetch a higher score in the final result than the focusing on the other 3 variables.
+
