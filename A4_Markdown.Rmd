@@ -1,0 +1,250 @@
+---
+title: "A4"
+output: word_document
+---
+
+SDM Homework D
+
+Part 1: Panel Models and Instrumental Variable Estimation
+
+For this assignment, please use the same dataset that was provided to you via Canvas for the mid-term exam. To answer the questions, please use R script or R markdown and document it with appropriate comments and observations wherever it is required. Please provide professional looking tables and charts wherever requested so that they are self-explanatory when printed in black and white; you can use “stargazer” library for showing the output tables and “ggplot2” for graphs, or other R packages.
+
+```{r}
+
+rm(list=ls())
+library(rio)
+library(moments)
+library(dplyr)
+library(stargazer)
+library(ggplot2)
+library(broom)
+library(car)
+library(plm)
+setwd("C:/Users/yagna/Documents/R/R workings")
+df = import("Balridge_data_prep_25Jan2020.csv")
+str(df)
+
+df$time_period <- ifelse(df$year < 1995, "bef95" ,ifelse(df$year < 1999, "95to98", "99to06"))
+unique(df$time_period)
+df$time_period <- relevel(as.factor(df$time_period), ref="bef95")   
+#changing reference group to sth
+
+#Recode each sector by its name
+unique(df$sector)
+df$mfg <- Recode(df$sector, 
+                 ' c("1")="yes";  else="no" ' ) #Recode in car package
+df$svce <- Recode(df$sector, 
+                  ' c("2")="yes";  else="no" ' )
+df$small <- Recode(df$sector, 
+                   ' c("3")="yes";  else="no" ' )
+df$edu <- Recode(df$sector, 
+                 ' c("4")="yes";  else="no" ' )
+df$hlth <- Recode(df$sector, 
+                  ' c("5")="yes";  else="no" ' )
+df$nonprof <- Recode(df$sector, 
+                     ' c("6")="yes";  else="no" ' )
+
+df$bef95 <- ifelse(df$year < 1995, "yes", "no")
+df$from95to98 <- ifelse(df$year >= 1995 & df$year <= 1998, "yes", "no")
+df$from99to06 <- ifelse(df$year >= 1999, "yes", "no")
+
+#remove non-profit sector
+df<-df[!(df$sector==6),]
+df <-df[!(df$permanentid==""),]
+
+
+d <-pdata.frame(df, index=c("permanentid","year"), row.names = FALSE)
+pdim(d)
+
+```
+
+1.	First run an OLS pooled  regression of y1pccust on inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc; and include sector dummies (with manufacturing as the omitted or base group) and period dummies (you will need to create a period variable that divides 1990-2006 into 3 periods: before 1995, 1995-1998, and 1999-2006, make before 1995 as the base period). 
+```{r}
+reg.ols<- (plm(y1pccust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + as.factor(time_period) + as.factor(sector), data= d, model="pooling") )  #ols
+
+summary(reg.ols)
+
+```
+2.	Next, run First Difference (FD), Between, Fixed Effects (FE) and Random Effects (RE) models and show OLS, FD, BE, FE and RE results side-by-side using stargazer. You will need to use plm library for running these models. 
+```{r}
+
+reg.fd <- plm (y1pccust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + as.factor(time_period) + as.factor(sector) , data= d, model="fd")   #fd
+
+reg.fe <- plm (y1pccust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + as.factor(time_period) + as.factor(sector) , data= d, model="within")   #fe
+
+reg.bw <- plm (y1pccust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + as.factor(time_period) + as.factor(sector) , data= d, model="between")   #fe
+
+reg.re <- plm (y1pccust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + as.factor(time_period) + as.factor(sector) , data= d, model="random")   #re
+
+stargazer(reg.ols,reg.fd,reg.bw,reg.fe,reg.re, type = "text",column.labels=c("OLS","FD", "BW","FE","RE") , digits = 2 )
+
+```
+3.	Explain which model should be preferred and why. You are expected to use Hausman test for choosing between RE and FE models. 
+```{r}
+
+phtest(reg.fe, reg.re)
+
+```
+
+
+
+
+4.	Based on your preferred model, which variable has the strongest effect on y1pccust. Discuss whether the difference in coefficient of this variable compared to the second most important variable is statistically significant or not based on a formal test.  
+```{r}
+
+
+```
+5.	Discuss how your findings based on panel models are different from the ones that you obtained earlier based on Homework C. Which model seems more plausible and robust to you and why? 
+```{r}
+
+
+
+```
+6.	Finally, use an instrumental variable approach using ivreg, and estimate the effect of inf1pcma on y1pccust by instrumenting inf1pcma by 1999-2006 period dummy. Also show the first stage regression testing relevance of the instrument. How does IV estimate for inf1pcma compare with FE estimate above and what does that say about the robustness of the effect of inf1pcma across different estimators and specifications?  
+```{r}
+
+library(AER)
+iv=ivreg(y1pccust~inf1pcma+(inf1pcma|from99to06 == "yes")+ time_period + sector + 
+            ld1pcla + st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc,data=d )
+summary(iv)
+
+```
+
+Part 2: Mixed-Level Models
+
+For this assignment, please use the same dataset that was provided to you via Canvas for the mid-term exam. 
+
+We want to now model both the intercept of y1pccust and the relationship between inf1pcma and y1pccust by edu sector (all other sector are used as a base) using mixed effects models. You will have in your model level 1 variables such as ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc. At level 2 you will only have edu sector variable to explain variance in intercept and slope (you may have to include appropriate interaction term(s) in the model syntax to allow for cross-level effects. 
+
+Please use a multi-level model using the lme4 packages in R following the example discussed in class, and based on your multi-level analysis, provide an interpretation of your mixed-effects results for random intercepts and random slopes. 
+
+Which model will you choose among mixed-effects model and any other models that you have run so far (including the models that you estimated in Homework C and the panel models in this homework), and why?  What are pros and cons of different models? 
+```{r}
+library(lme4)
+library(nlme)
+
+
+d$mfg <- ifelse(d$sector == 0, 1, 0)
+d$serv <- ifelse(d$sector == 0, 1, 0)
+d$small <- ifelse(d$sector == 0, 1, 0)
+d$educ <- ifelse(d$sector == 1, 1, 0)
+d$hc <- ifelse(d$sector == 0, 1, 0)
+
+
+#Varying intercept model with multiple individual-level and group-level predictors
+reg.me = lmer(y1pccust ~ inf1pcma + ld1pcla + st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + 
+              (1|edu), data=d, REML=TRUE)
+
+summary(reg.me)
+
+## Varying intercept and varying slope model--intercept and inf1pcma being treated as random 
+reg.me1 <-lmer(y1pccust ~ inf1pcma + ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + 
+            (1 + inf1pcma| edu),data=d)
+summary(reg.me1)
+
+
+#intercept only model
+reg.me2 = lmer(y1pccust ~ 1 +(1|edu),data=d)
+
+summary(reg.me2)
+
+fixef(reg.me)
+ranef(reg.me)
+coef(reg.me)
+
+
+
+
+
+```
+
+Part 3: Logit/Probit Models
+
+For this assignment, please use the same dataset that was provided to you via Canvas for the mid-term exam. 
+
+Create a dependent variable y2hicust that is 1 when y1pccust>50, else zero. Now run a logit model of y2hicust on inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc; and include sector dummies (with manufacturing as the omitted or base group) and period dummies (you will need to create a period variable that divides 1990-2006 into 3 periods: before 1995, 1995-1998, and 1999-2006, make before 1995 as the base period).
+
+Interpret the output and discuss effects of statistically significant variables in terms of odds and probabilities.  
+
+Plot at least two charts that show non-linear effects of key explanatory variables on probability scale. 
+
+Create a 2x2 classification (or confusion) matrix and discuss how good your model is. 
+
+Extra points: Come up with a better model and explain why that model is better. 
+```{r}
+
+d$y2hicust <- ifelse(d$y1pccust>50 , 1, 0)
+
+logit <- glm(y2hicust ~ inf1pcma +ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc
+                + sector+time_period, data = d, family = "binomial")
+
+summary(logit)
+S(logit)
+
+
+logitscalar <- mean(dlogis(predict(logit, type="link"))) #average marginal effects to interpret how we interpret regular OLS
+
+logitscalar*coef(logit)
+library(tidyr)
+
+
+pred.data=expand.grid (
+  
+  sector    =unique(df$sector),
+  period    =unique(df$time_period),
+  
+  inf1pcma=quantile(df$inf1pcma,c(.25,.5,.75,1.0)),
+  ld1pcla =quantile(df$ld1pcla,c(.25,.5,.75,1.0)),
+  st1pcdev =quantile(df$st1pcdev,c(.25,.5,.75,1.0)),
+  cs1pccmk =quantile(df$cs1pccmk,c(.25,.5,.75,1.0)),
+  pm1pcvc =quantile(df$pm1pcvc,c(.25,.5,.75,1.0)),
+  hr3pcsat =quantile(df$hr3pcsat,c(.25,.5,.75,1.0))
+  
+)
+
+#my.sample
+my.sample.predictions=predict(logit,newdata=pred.data,type = "response")
+my.sample.predictions=cbind(pred.data,my.sample.predictions)
+head(my.sample.predictions)
+
+my.sample.predictions[which(my.sample.predictions$my.sample.predictions==max(my.sample.predictions$my.sample.predictions)),]
+
+my.sample.predictions[which(my.sample.predictions$my.sample.predictions==min(my.sample.predictions$my.sample.predictions)),]
+
+library("ROCR")
+pred <- prediction(fitted(logit),
+                   df$y2hicust) #Accuracy curve: Fig 5.2, left panel, p129KZ
+plot(performance(pred, "acc"))
+
+plot(performance(pred, "tpr", "fpr")) #ROC curve: Fig 5.2, right panel, p129KZ
+abline(0, 1, lty = 2)
+
+#Confusion Matrix
+
+table(true = df$y2hicust,
+      pred = round(fitted(logit)))
+
+```
+We could see few beta as significant. Model shows two deviances one is Null deviance and other is Residual deviance.Deviance is a measure of goodness of fit of a generalized linear model. The null deviance shows how well the response variable is predicted by a model that includes only the intercept (grand mean). Here, residual deviance is large from Null deviance which is good indication of model
+
+Interpretation in terms of probability:
+inf1pcma: The coefficient estimate of the variable inf1pcma is b = 0.03157, which is positive. This means that an increase in inf1pcma is associated with increase in the probability of being y2hicust as 1.
+st1pcdev: The coefficient estimate of the variable st1pcdev is b = 0.02892, which is positive. This means that an increase in st1pcdev is associated with increase in the probability of being y2hicust as 1.
+cs1pccmk: The coefficient estimate of the variable cs1pccmk is b = 0.06760, which is positive. This means that an increase in cs1pccmk is associated with increase in the probability of being y2hicust as 1.
+pm1pcvc: The coefficient estimate of the variable pm1pcvc is b = 0.03975, which is positive. This means that an increase in pm1pcvc is associated with increase in the probability of being y2hicust as 1.
+sectoreducation: The coefficient estimate of the variable sectoreducation is b = 2.07622, which is positive (highest positive). This means that if company belongs to education, it adversly influences in increasing probability of being y2hicust as 1 compared to mfg sector.
+time_period95to98: The coefficient estimate of the variable time_period95to98 is b = -.94663, which is negative. This means that an company belonging from 1995-1998 will be associated with a decreased probability of being y2hicust as 1.
+time_period99to06: The coefficient estimate of the variable time_period99to06 is b = -.68953, which is negative. This means that an company belonging from 1996-2006 will be associated with a decreased probability of being y2hicust as 1.
+
+Interpretation in terms of odds ratio.
+An odds ratio measures the association between a predictor variable (x) and the outcome variable (y). It represents the ratio of the odds that an event will occur (event = 1) given the presence of the predictor x (x = 1), compared to the odds of the event occurring in the absence of that predictor (x = 0)
+
+inf1pcma: The regression coefficient for inf1pcma is 0.03157. This indicate that one unit increase in the inf1pcma score will increase the odds of being  y2hicust as 1 by exp(0.03157) 1.03 times.
+st1pcdev: The regression coefficient for st1pcdev is 0.02892. This indicate that one unit increase in the st1pcdev score will increase the odds of being  y2hicust as 1 by exp(0.02892) 1.029 times.
+cs1pccmk: The regression coefficient for cs1pccmk is 0.06760. This indicate that one unit increase in the cs1pccmk score will increase the odds of being  y2hicust as 1 by exp(0.06760) 1.07 times.
+pm1pcvc:  The regression coefficient for pm1pcvc  is 0.03975. This indicate that one unit increase in the pm1pcvc  score will increase the odds of being  y2hicust as 1 by exp(0.03975) 1.04 times.
+sectoreducation: The regression coefficient for sectoreducation is 2.07622. This indicate that if company belongs to sectoreducation increase the odds of being  y2hicust as 1 by exp(2.07622) 7.98 times compared to mfg.
+time_period95to98: The coefficient estimate of the variable time_period95to98 is b = 0.94663, which is negative. This means that an if company is from time_period95to98 decrease the odds of being y2hicust as 1 by exp(0.94663) 2.58 times compared to companies hailing below 1995.
+time_period99to06: The coefficient estimate of the variable time_period99to06 is b = 0.68953, which is negative. This means that an if company is from time_period99to06 decrease the odds of being y2hicust as 1 by exp(0.68953) 2 times compared to companies hailing below 1995.
+
+

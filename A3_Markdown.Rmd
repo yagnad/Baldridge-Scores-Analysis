@@ -1,0 +1,195 @@
+---
+title: "Assignment 3 - Yagna Venkitasamy"
+output: word_document
+---
+
+
+
+Part 1
+First run a multiple regression of y1pccust on inf1pcma with sector and period dummies (you will need to create a period variable that divides 1990-2006 into 3 periods: before 1995, 1995-1998, and 1999-2006). In this model also include other covariates such as ld1pcla+ st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc; and include an interaction effect between inf1pcma and education sector, and also an interaction effect between inf1pcma and period 1999-2006. 
+
+Now assess this model for the extent to which it satisfies the following six regression assumptions discussed in class. 
+
+
+```{r}
+rm(list=ls())
+library(rio)
+library(moments)
+library(dplyr)
+library(stargazer)
+library(ggplot2)
+library(broom)
+library(car)
+setwd("C:/Users/yagna/Documents/R/R workings")
+df = import("Balridge_data_prep_25Jan2020.csv")
+str(df)
+getwd()
+
+df$time_period <- ifelse(df$year < 1995, 0 ,ifelse(df$year < 1999, 1, 2))
+m1 <- lm(y1pccust ~ inf1pcma +as.factor(sector) + as.factor(time_period) +
+              ld1pcla + st1pcdev + cs1pccmk + hr3pcsat + pm1pcvc + 
+              I(inf1pcma*(sector==4)) + I(inf1pcma*(time_period==2)),data = df)
+stargazer(m1,type = "text")
+
+
+```
+
+(1) MLR 1: Population or true model is linear in parameters
+
+```{r}
+par(mfrow=c(2,2))
+plot(m1)
+
+```
+Interpretation:
+
+The residuals and the fitted plots shows that the data is fairly linear and centered around zero. 
+
+(2) MLR 2: Random sampling
+
+```{r}
+
+par(mfrow=c(1,1))
+plot (m1$residuals ~ m1$fit)
+library(Rcpp)
+qqPlot(m1, simulate=T, labels=row.names(df))   
+#it gives us a 95% confidence interval 
+outlierTest(m1)   #does a formal test, applies Bonferroni, identifies obs
+plot(hatvalues(m1))  #avg hatvalue h=(k+1)/n ; more than 2h or 3h problem 
+influencePlot(m1,id.method="identify")  #recheck if circles are prop to cook's d
+
+```
+Interpretation:
+
+The studentized residuals graph shows us the regression outliers. Hat values tell us about potential influence of an observation. In the influence plot, the size of circle is proportional to Cook’s distance in assumption #1(Residual vs Leverage graph), which tells us about actual influence of an observation for the model. When cases are outside of the Cook’s distance / have high Cook’s distance scores, the cases are influential to the regression results. In this model, there is no influential case. All cases are well inside of the Cook’s distance lines which means that the model passes the test of random sampling.
+
+
+(3) MLR 3: Zero conditional mean or exogeneous variables assumption (This assumption violated if we omit squared terms, use log x instead of x or vice versa, we omit some variable, measurement error in some vars; Note: If xj is correlated with u for any reason then that xj is said to be endogenous.) 
+
+```{r}
+#3 conditional indep assumption--no endogeneity
+library(lmtest)
+resettest(m1)
+
+```
+Interpretation:
+
+At alpha=0.05, p-value of 0.029 is the evidence of functional form misspecification. The assumption is violated. We might be omitting squared terms or some variable.
+
+(4) MLR 4: No perfect Multicollinearity among Xs 
+
+```{r}
+library(car)
+vif(m1)   #vif=1/(1-rjsquared) where j=1...p; usually vif>10 problematic
+
+```
+Interpretation:
+
+After taking into account of the degree of freedoms for each variable, all VIF's are low, indicating all predictor variables are not highly collinear with each other as the VIF values are very less than 5. 
+ 
+(5) MLR 5: Adding 5th assumption about homoskedasticity to make OLS estimator BLUE.  
+ 
+```{r}
+#Bartlett test is more sensitive to violations of normality than Levene test
+plot(m1$residuals~m1$fitted.values)
+bartlett.test(list(m1$residuals,m1$fitted.values))    #here list coerces data objects into a dataframe which serves as input for Bartlett test
+#nonconstant variance score test--aka Breusch Pagan test
+ncvTest(m1)
+
+
+```
+Interpretation:
+
+ Looking at the Residuals vs fitted values graph, we can see a funnel/cone pattern indicating that there is heteroskedaticity in our model. After running the Bartlett test, since p-value is significant, we reject H0, concluding that the variances are not equal.
+
+ (6) MLR 6: Normality assumption for u (encompasses MLR 3 and MLR 5 also): Formally, U~ N (0, sigmasq). 
+```{r}
+
+qqPlot(m1, labels = FALSE,
+       simulate = TRUE, main = "Q-Q Plot") 
+shapiro.test(m1$residuals)
+
+```
+Interpretation:
+The qq plot and the shapiro test show that the residual values are almost normally distributed. The points at the lower end and upper end are not lined up with qqline and there is a deviation.The mean of residuals is close to zero. The Shapiro test gives a p-value lesser than 0-05 and hence we reject the null hypothesis and the data is not normally distributed.
+
+Part 2
+
+Now run a multiple regression of cs1pccmk on inf1pcma with sector and period dummies, also include other covariates such as ld1pcla+ st1pcdev + hr3pcsat + pm1pcvc. Assess this model for the extent to which it satisfies the six regression assumptions discussed in class. 
+
+```{r}
+# Build and assess new model
+m2 <- lm(cs1pccmk ~ inf1pcma + as.factor(sector) + as.factor(time_period) + ld1pcla +
+           st1pcdev + hr3pcsat + pm1pcvc, data = df)
+stargazer(m2,type = "text")
+
+#1 Linearity
+par(mfrow=c(2,2))
+plot(m2)
+
+```
+
+Interpretation:
+
+The residuals and the fitted plots shows that the data is not linear as the red line shows a non linear pattern.
+
+```{r}
+
+#2 Random sampling--Indep obs-- No autocorrelation--
+par(mfrow=c(1,1))
+plot (m2$residuals ~ m2$fit)
+qqPlot(m2, simulate=T, labels=row.names(df))   
+#it gives us a 95% confidence interval 
+outlierTest(m2)   #does a formal test, applies Bonferroni, identifies obs
+plot(hatvalues(m2))  #avg hatvalue h=(k+1)/n ; more than 2h or 3h problem 
+influencePlot(m2,id.method="identify")  #recheck if circles are prop to cook's d
+```
+Interpretation:
+
+The studentized residuals graph shows us we have one regression outlier in model 2. However, the outlier may or may not be influential. Hat values tell us about potential influence of an observation. In the influence plot, the size of circle is proportional to Cook’s distance in assumption #1(Residual vs Leverage graph), which tells us about actual influence of an observation for the model. When cases are outside of the Cook’s distance / have high Cook’s distance scores, the cases are influential to the regression results. In model 2, the regression outlier is not influential because it is not outside of the Cook’s distance lines.
+
+
+```{r}
+#3 conditional indep assumption--no endogeneity
+resettest(m2)
+```
+Interpretation:
+
+At alpha=0.05, p-value of 0.012 is the evidence of functional form misspecification. The assumption is violated. We might be omitting squared terms or some variable.
+
+```{r}
+#4 Multicollinerity
+vif(m2)   #vif=1/(1-rjsquared) where j=1...p; usually vif>10 problematic
+
+sqrt(vif(m2)) > 2   #flags coef that have high vif values say more than 4
+
+```
+Interpretation:
+
+After taking into account of the degree of freedoms for each variable, all VIF's are low (less than 5), indicating all predictor variables are not highly collinear with each other.
+
+```{r}
+#5 Homoskedasticity
+#Bartlett test is more sensitive to violations of normality than Levene test
+plot(m2$residuals~m2$fitted.values)
+bartlett.test(list(m2$residuals,m2$fitted.values))    #here list coerces data objects into a dataframe which serves as input for Bartlett test
+#nonconstant variance score test--aka Breusch Pagan test
+ncvTest(m2)
+```
+Interpretation:
+
+After running the Bartlett test, we can see that p-value is significant. Therefore we reject H0, concluding that the variances are not equal.
+
+```{r}
+#6 Multivariate Normality
+qqPlot(m2, labels = FALSE,
+       simulate = TRUE, main = "Q-Q Plot") 
+shapiro.test(m2$residuals)
+ 
+```
+
+Interpretation:
+
+The qq plot and the shapiro test show that the residual values are almost normally distributed. The points at the lower end and upper end are not lined up with qqline and there is a deviation.The mean of residuals is close to zero. The Shapiro test gives a p-value lesser than 0-05 and hence we reject the null hypothesis and the data is not normally distributed.
+
+
